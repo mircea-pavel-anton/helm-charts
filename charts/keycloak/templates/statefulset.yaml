@@ -344,7 +344,35 @@ spec:
             name: {{ include "keycloak.fullname" . }}-cache
         {{- end }}
         - name: tmp
+          {{- if .Values.tmpVolume.ephemeral.enabled }}
+          ephemeral:
+            volumeClaimTemplate:
+              metadata:
+                labels:
+                  {{- include "keycloak.selectorLabels" . | nindent 18 }}
+                {{- $tmpAnnotations := merge .Values.tmpVolume.ephemeral.annotations .Values.commonAnnotations }}
+                {{- with $tmpAnnotations }}
+                annotations:
+                  {{- toYaml . | nindent 18 }}
+                {{- end }}
+              spec:
+                accessModes:
+                  {{- range .Values.tmpVolume.ephemeral.accessModes }}
+                  - {{ . | quote }}
+                  {{- end }}
+                resources:
+                  requests:
+                    storage: {{ .Values.tmpVolume.ephemeral.size | quote }}
+                {{- if .Values.tmpVolume.ephemeral.storageClass }}
+                {{- if (eq "-" .Values.tmpVolume.ephemeral.storageClass) }}
+                storageClassName: ""
+                {{- else }}
+                storageClassName: {{ .Values.tmpVolume.ephemeral.storageClass | quote }}
+                {{- end }}
+                {{- end }}
+          {{- else }}
           emptyDir: {}
+          {{- end }}
         - name: keycloak-work
           emptyDir: {}
         - name: keycloak-lib-quarkus

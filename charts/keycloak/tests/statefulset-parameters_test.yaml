@@ -245,3 +245,100 @@ tests:
               secretKeyRef:
                 name: my-secret
                 key: password
+
+  # tmp volume
+  - it: tmp volume should be an emptyDir by default
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp
+            emptyDir: {}
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
+
+  - it: tmp volume should be a generic ephemeral volume when enabled
+    set:
+      tmpVolume:
+        ephemeral:
+          enabled: true
+          storageClass: gp3
+          size: 5Gi
+          annotations:
+            example.com/tmp: "true"
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp
+            ephemeral:
+              volumeClaimTemplate:
+                metadata:
+                  labels:
+                    app.kubernetes.io/name: keycloak
+                    app.kubernetes.io/instance: RELEASE-NAME
+                  annotations:
+                    example.com/tmp: "true"
+                spec:
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 5Gi
+                  storageClassName: gp3
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp
+            emptyDir: {}
+      - notExists:
+          path: spec.volumeClaimTemplates
+
+  - it: tmp ephemeral volume should omit storageClassName by default
+    set:
+      tmpVolume:
+        ephemeral:
+          enabled: true
+    asserts:
+      - notExists:
+          path: spec.template.spec.volumes[?(@.name == "tmp")].ephemeral.volumeClaimTemplate.spec.storageClassName
+      - notExists:
+          path: spec.template.spec.volumes[?(@.name == "tmp")].ephemeral.volumeClaimTemplate.metadata.annotations
+      - equal:
+          path: spec.template.spec.volumes[?(@.name == "tmp")].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: 1Gi
+
+  - it: tmp ephemeral volume should request an empty storageClassName with "-"
+    set:
+      tmpVolume:
+        ephemeral:
+          enabled: true
+          storageClass: "-"
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[?(@.name == "tmp")].ephemeral.volumeClaimTemplate.spec.storageClassName
+          value: ""
+
+  - it: tmp ephemeral volume should merge commonAnnotations
+    set:
+      commonAnnotations:
+        team: identity
+      tmpVolume:
+        ephemeral:
+          enabled: true
+          annotations:
+            example.com/tmp: "true"
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[?(@.name == "tmp")].ephemeral.volumeClaimTemplate.metadata.annotations
+          value:
+            team: identity
+            example.com/tmp: "true"

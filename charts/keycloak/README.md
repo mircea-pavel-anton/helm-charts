@@ -125,6 +125,16 @@ The following table lists the configurable parameters of the Keycloak chart and 
 | `preserveThemes`    | Disable mounting an emptyDir over `/opt/keycloak/themes`, preserving the themes bundled in the image     | `false` |
 | `preserveProviders` | Disable mounting an emptyDir over `/opt/keycloak/providers`, preserving the providers bundled in the image | `false` |
 
+### Temporary volume
+
+| Parameter                            | Description                                                                                     | Default             |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------- | ------------------- |
+| `tmpVolume.ephemeral.enabled`        | Back `/tmp` with a generic ephemeral volume instead of an emptyDir                              | `false`             |
+| `tmpVolume.ephemeral.storageClass`   | Storage class of the ephemeral volume. Set to `-` to request an empty storageClassName          | `""`                |
+| `tmpVolume.ephemeral.annotations`    | Annotations for the ephemeral volume's Persistent Volume Claim                                  | `{}`                |
+| `tmpVolume.ephemeral.size`           | Size of the ephemeral volume                                                                    | `1Gi`               |
+| `tmpVolume.ephemeral.accessModes`    | Access modes of the ephemeral volume                                                            | `["ReadWriteOnce"]` |
+
 ### Extra init containers for Keycloak pod
 
 | Parameter             | Description                                       | Default |
@@ -650,6 +660,20 @@ extraInitContainers:
       - name: keycloak-themes
         mountPath: /opt/keycloak/themes
 ```
+
+### Backing /tmp with an Ephemeral Volume
+
+The chart mounts a volume named `tmp` at `/tmp` in the Keycloak container. By default it is an emptyDir, which uses the node's ephemeral storage. On nodes with little local disk, you can back `/tmp` with a [generic ephemeral volume](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) instead: a Persistent Volume Claim that is created with each pod and deleted with it.
+
+```yaml
+tmpVolume:
+  ephemeral:
+    enabled: true
+    storageClass: gp3
+    size: 5Gi
+```
+
+The volume keeps the name `tmp`, so `extraContainers` and `extraInitContainers` can still mount it. The volume's storage driver must honour the pod's `fsGroup` (most block storage drivers, such as the AWS EBS CSI driver, do), so that the non-root Keycloak user can write to it.
 
 ### Template Expressions in Extra Fields
 

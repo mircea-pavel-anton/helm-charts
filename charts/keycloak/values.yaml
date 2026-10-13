@@ -60,6 +60,24 @@ preserveThemes: false
 ## @param preserveProviders Disable mounting an emptyDir over /opt/keycloak/providers, preserving the providers bundled in the image.
 preserveProviders: false
 
+## @section Temporary volume
+## The chart always mounts a volume named `tmp` at /tmp in the Keycloak container. By default it is an
+## emptyDir, which consumes the node's ephemeral storage. On nodes with little local disk this can be
+## replaced by a generic ephemeral volume: a PVC that is created with each pod and deleted with it.
+tmpVolume:
+  ephemeral:
+    ## @param tmpVolume.ephemeral.enabled Back /tmp with a generic ephemeral volume instead of an emptyDir
+    enabled: false
+    ## @param tmpVolume.ephemeral.storageClass Storage class of the ephemeral volume. Set to `-` to request an empty storageClassName
+    storageClass: ""
+    ## @param tmpVolume.ephemeral.annotations Annotations for the ephemeral volume's Persistent Volume Claim
+    annotations: {}
+    ## @param tmpVolume.ephemeral.size Size of the ephemeral volume
+    size: 1Gi
+    ## @param tmpVolume.ephemeral.accessModes Access modes of the ephemeral volume
+    accessModes:
+      - ReadWriteOnce
+
 ## @section Extra init containers for Keycloak pod
 ## @param Optionnaly specify an extra list of initContainer for the Keycloak pod
 ## Example:

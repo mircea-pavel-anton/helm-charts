@@ -834,6 +834,34 @@
                 }
             }
         },
+        "tmpVolume": {
+            "type": "object",
+            "properties": {
+                "ephemeral": {
+                    "type": "object",
+                    "properties": {
+                        "accessModes": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "annotations": {
+                            "type": "object"
+                        },
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "size": {
+                            "type": "string"
+                        },
+                        "storageClass": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "tolerations": {
             "type": "array"
         },
