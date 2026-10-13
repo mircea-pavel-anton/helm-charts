@@ -1,0 +1,153 @@
+suite: test management interface scheme
+templates:
+  - templates/statefulset.yaml
+  - templates/metrics-servicemonitor.yaml
+tests:
+  - it: should probe over HTTP and not set the management scheme by default
+    template: templates/statefulset.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --http-management-scheme=http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.scheme
+          value: HTTP
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.scheme
+          value: HTTP
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.scheme
+          value: HTTP
+
+  - it: should probe over HTTPS when TLS is enabled and the management scheme is inherited
+    template: templates/statefulset.yaml
+    set:
+      tls:
+        enabled: true
+        existingSecret: keycloak-tls
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --http-management-scheme=http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.scheme
+          value: HTTPS
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.scheme
+          value: HTTPS
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.scheme
+          value: HTTPS
+
+  - it: should probe over HTTP when TLS is enabled and the management scheme is http
+    template: templates/statefulset.yaml
+    set:
+      tls:
+        enabled: true
+        existingSecret: keycloak-tls
+      keycloak:
+        managementScheme: http
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --http-management-scheme=http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.scheme
+          value: HTTP
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.scheme
+          value: HTTP
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.scheme
+          value: HTTP
+
+  - it: should pass the http management scheme when TLS is disabled
+    template: templates/statefulset.yaml
+    set:
+      keycloak:
+        managementScheme: http
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --http-management-scheme=http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.scheme
+          value: HTTP
+
+  - it: should reject an unknown management scheme
+    template: templates/statefulset.yaml
+    set:
+      keycloak:
+        managementScheme: https
+    asserts:
+      - failedTemplate: {}
+
+  - it: should not set scheme or tlsConfig on the ServiceMonitor by default
+    template: templates/metrics-servicemonitor.yaml
+    set:
+      metrics:
+        enabled: true
+        serviceMonitor:
+          enabled: true
+    asserts:
+      - isKind:
+          of: ServiceMonitor
+      - notExists:
+          path: spec.endpoints[0].scheme
+      - notExists:
+          path: spec.endpoints[0].tlsConfig
+
+  - it: should render the ServiceMonitor scheme and tlsConfig
+    template: templates/metrics-servicemonitor.yaml
+    set:
+      metrics:
+        enabled: true
+        serviceMonitor:
+          enabled: true
+          scheme: https
+          tlsConfig:
+            ca:
+              secret:
+                name: keycloak-tls
+                key: ca.crt
+            serverName: keycloak.example.com
+    asserts:
+      - equal:
+          path: spec.endpoints[0].scheme
+          value: https
+      - equal:
+          path: spec.endpoints[0].tlsConfig
+          value:
+            ca:
+              secret:
+                name: keycloak-tls
+                key: ca.crt
+            serverName: keycloak.example.com
+
+  - it: should render templates in the ServiceMonitor tlsConfig
+    template: templates/metrics-servicemonitor.yaml
+    release:
+      namespace: identity
+    set:
+      metrics:
+        enabled: true
+        serviceMonitor:
+          enabled: true
+          scheme: https
+          tlsConfig:
+            serverName: '{{ include "keycloak.fullname" . }}.{{ .Release.Namespace }}.svc'
+    asserts:
+      - equal:
+          path: spec.endpoints[0].tlsConfig.serverName
+          value: RELEASE-NAME-keycloak.identity.svc
+
+  - it: should reject an unknown ServiceMonitor scheme
+    template: templates/metrics-servicemonitor.yaml
+    set:
+      metrics:
+        enabled: true
+        serviceMonitor:
+          enabled: true
+          scheme: ftp
+    asserts:
+      - failedTemplate: {}

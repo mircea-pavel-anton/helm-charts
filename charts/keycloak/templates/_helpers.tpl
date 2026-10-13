@@ -205,6 +205,18 @@ Return the url to use for readiness probe
 {{- end }}
 
 {{/*
+Return the scheme served by the management interface (health and metrics).
+It inherits HTTPS from the main interface unless keycloak.managementScheme is "http".
+*/}}
+{{- define "keycloak.managementScheme" -}}
+{{- if and .Values.tls.enabled (ne .Values.keycloak.managementScheme "http") -}}
+HTTPS
+{{- else -}}
+HTTP
+{{- end -}}
+{{- end }}
+
+{{/*
 Return TLS certificate secret name
 */}}
 {{- define "keycloak.tlsSecretName" -}}

@@ -166,6 +166,8 @@ The following table lists the configurable parameters of the Keycloak chart and 
 | `keycloak.httpsEnabled`                | Enable HTTPS listener (only when Keycloak itself terminates TLS via `tls.enabled`)                           | `false`            |
 | `keycloak.httpPort`                    | HTTP port                                                                                                    | `8080`             |
 | `keycloak.httpsPort`                   | HTTPS port                                                                                                   | `8443`             |
+| `keycloak.managementPort`              | Port of the management interface serving health and metrics                                                  | `9000`             |
+| `keycloak.managementScheme`            | Scheme of the management interface (`inherited` serves HTTPS when `tls.enabled`, `http` always serves HTTP). Health probes follow this value. | `inherited`        |
 | `keycloak.proxyHeaders`                | Proxy headers to trust (`forwarded` or `xforwarded`). Must be set when running behind a reverse proxy (e.g. nginx ingress). Leave empty only when Keycloak is directly exposed without a proxy. | `""`               |
 | `keycloak.proxyProtocolEnabled`        | Whether the server should use the HA PROXY protocol when serving requests from behind a proxy. (true, false) | `false`            |
 | `keycloak.proxyTrustedAddresses`       | A comma separated list of trusted proxy addresses                                                            | `""`               |
@@ -302,6 +304,8 @@ The following table lists the configurable parameters of the Keycloak chart and 
 | `metrics.serviceMonitor.metricRelabelings` | MetricRelabelConfigs to apply to samples before ingestion                        | `[]`           |
 | `metrics.serviceMonitor.honorLabels`       | Specify honorLabels parameter to add the scrape endpoint                         | `false`        |
 | `metrics.serviceMonitor.jobLabel`          | The name of the label on the target service to use as the job name in Prometheus | `""`           |
+| `metrics.serviceMonitor.scheme`            | HTTP scheme to use for scraping (`http` or `https`); empty uses the Prometheus default (`http`) | `""`           |
+| `metrics.serviceMonitor.tlsConfig`         | TLS configuration to use when scraping the endpoint (supports templating)       | `{}`           |
 
 ### Liveness and readiness probes
 
@@ -789,6 +793,50 @@ Create the truststore secret:
 ```bash
 kubectl create secret generic keycloak-truststore \
   --from-file=truststore.jks=/path/to/truststore.jks
+```
+
+#### Management Interface Scheme and Metrics over TLS
+
+The management interface (health and metrics on `keycloak.managementPort`) inherits the HTTPS settings of the main interface by default, so it serves HTTPS whenever `tls.enabled` is true. The liveness, readiness, and startup probes follow the management interface scheme automatically.
+
+To keep the management interface on plain HTTP while Keycloak terminates TLS on its main interface, set `keycloak.managementScheme` to `http`:
+
+```yaml
+# values-tls-management-http.yaml
+tls:
+  enabled: true
+  existingSecret: "keycloak-tls-certs"
+
+keycloak:
+  httpEnabled: true
+  httpsEnabled: true
+  managementScheme: http
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+```
+
+When the management interface serves HTTPS, configure the ServiceMonitor to scrape over HTTPS and verify the certificate:
+
+```yaml
+# values-tls-metrics.yaml
+tls:
+  enabled: true
+  existingSecret: "keycloak-tls-certs"
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    scheme: https
+    tlsConfig:
+      ca:
+        secret:
+          name: keycloak-tls-certs
+          key: ca.crt
+      serverName: "{{ include \"keycloak.fullname\" . }}.{{ .Release.Namespace }}.svc"
 ```
 
 ### High Availability Setup

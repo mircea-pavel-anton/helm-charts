@@ -126,6 +126,9 @@ spec:
             {{- if .Values.keycloak.managementPort }}
             - --http-management-port={{ .Values.keycloak.managementPort }}
             {{- end }}
+            {{- if eq .Values.keycloak.managementScheme "http" }}
+            - --http-management-scheme=http
+            {{- end }}
             {{- if and .Values.database.type (not (has .Values.database.type (list "h2-file" "h2-mem" "dev-mem"))) }}
             - --db={{ .Values.database.type }}
             - --db-url={{ include "keycloak.databaseUrl" . }}
@@ -252,7 +255,7 @@ spec:
             httpGet:
               path: {{ include "keycloak.livenessProbeUrl" . }}
               port: management
-              scheme: {{ .Values.tls.enabled | ternary "HTTPS" "HTTP" }}
+              scheme: {{ include "keycloak.managementScheme" . }}
             initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
@@ -264,7 +267,7 @@ spec:
             httpGet:
               path: {{ include "keycloak.readinessProbeUrl" . }}
               port: management
-              scheme: {{ .Values.tls.enabled | ternary "HTTPS" "HTTP" }}
+              scheme: {{ include "keycloak.managementScheme" . }}
             initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
@@ -276,7 +279,7 @@ spec:
             httpGet:
               path: {{ include "keycloak.livenessProbeUrl" . }}
               port: management
-              scheme: {{ .Values.tls.enabled | ternary "HTTPS" "HTTP" }}
+              scheme: {{ include "keycloak.managementScheme" . }}
             initialDelaySeconds: {{ .Values.startupProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.startupProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.startupProbe.timeoutSeconds }}

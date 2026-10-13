@@ -24,6 +24,13 @@ spec:
       - {{ include "cloudpirates.namespace" . }}
   endpoints:
     - port: {{ .Values.metrics.service.targetPort }}
+      {{- with .Values.metrics.serviceMonitor.scheme }}
+      scheme: {{ . }}
+      {{- end }}
+      {{- with .Values.metrics.serviceMonitor.tlsConfig }}
+      tlsConfig:
+        {{- include "cloudpirates.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}
+      {{- end }}
       {{- if .Values.metrics.serviceMonitor.interval }}
       interval: {{ .Values.metrics.serviceMonitor.interval }}
       {{- end }}
